@@ -1,0 +1,12 @@
+[package]
+name = "calcure_clone"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+anyhow = "1.0.86"
+config-file = "0.2.3"
+derive_builder = { version = "0.20.0", features = ["clippy"] }
+ratatui = "0.26.3"
+serde = { version = "1.0.203", features = ["derive"] }
+toml = "0.8.14"
