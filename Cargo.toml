@@ -5,7 +5,7 @@ edition = "2021"
 
 [dependencies]
 anyhow = "1.0.86"
-config-file = "0.2.3"
+clap = { version = "4.5.6", features = ["derive"] }
 derive_builder = { version = "0.20.0", features = ["clippy"] }
 ratatui = "0.26.3"
 serde = { version = "1.0.203", features = ["derive"] }
