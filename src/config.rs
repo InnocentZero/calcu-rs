@@ -6,11 +6,16 @@ use std::{
     default::Default,
     env,
     fs::File,
-    io::{BufReader, BufWriter, Read, Write},
+    io::{BufReader, Read, Write},
     path::PathBuf,
 };
 
-#[derive(Deserialize, Serialize, Builder)]
+#[derive(Deserialize, Serialize, Builder, Debug)]
+pub struct _Config {
+    config: Config,
+}
+
+#[derive(Deserialize, Serialize, Builder, Debug, Clone)]
 pub struct Config {
     data_folder: String,
     #[builder(default = "true")]
@@ -35,7 +40,7 @@ pub struct Config {
     deadline_icon: String,
 }
 
-#[derive(Deserialize, Serialize, Copy, Clone, Default)]
+#[derive(Deserialize, Serialize, Copy, Clone, Default, Debug)]
 pub enum CalView {
     #[default]
     Monthly,
@@ -44,41 +49,18 @@ pub enum CalView {
     ThreeDay,
 }
 
-impl Config {
-    pub fn try_parse(config_file: Option<PathBuf>) -> Result<Self> {
-        let file = match config_file {
-            Some(path) => Ok(path),
-            None => get_config_path(),
-        };
+impl _Config {
+    pub fn try_parse(config_file: &PathBuf) -> Result<Self> {
         let mut buf = String::new();
-        let config_file = File::open(file?)?;
+        let config_file = File::open(config_file)?;
         let mut reader = BufReader::new(config_file);
         reader.read_to_string(&mut buf)?;
-        let config: Config = toml::from_str(buf.as_str())?;
+        let config: _Config = toml::from_str(buf.as_str())?;
         Ok(config)
-    }
-
-    pub fn write_default_config(config_path: &mut PathBuf) -> Result<()> {
-        let config_file = File::open(&config_path)?;
-        let mut writer = BufWriter::new(config_file);
-        let default_config = ConfigBuilder::default()
-            .data_folder(
-                config_path
-                    .parent()
-                    .ok_or(anyhow!("Cannot find the directory out of the filepath."))?
-                    .to_str()
-                    .ok_or(anyhow!("Ideally shouldn't happen??"))?
-                    .into(),
-            )
-            .build()
-            .unwrap();
-        let toml = toml::to_string(&default_config)?;
-        writer.write_all(toml.as_bytes())?;
-        Ok(())
     }
 }
 
-fn get_config_path() -> Result<PathBuf> {
+pub fn get_config_path() -> Result<PathBuf> {
     let config_dir = if let Ok(config_dir) = env::var("CALCURSE_HOME") {
         Ok(config_dir)
     } else if let Ok(config_dir) = env::var("XDG_CONFIG") {
@@ -95,7 +77,29 @@ fn get_config_path() -> Result<PathBuf> {
             Err(e) => Err(e),
         }
     };
+
     Ok([config_dir?.as_str(), "calcurs", "config.toml"]
         .join("/")
         .into())
+}
+pub fn write_default_config(config_path: &PathBuf) -> Result<()> {
+    let mut config_file = File::create(config_path)?;
+    let default_inner = ConfigBuilder::default()
+        .data_folder(
+            config_path
+                .parent()
+                .ok_or(anyhow!("Cannot find the directory out of the filepath."))?
+                .to_str()
+                .ok_or(anyhow!("Ideally shouldn't happen??"))?
+                .into(),
+        )
+        .build()
+        .unwrap();
+    let default_config = _ConfigBuilder::default()
+        .config(default_inner)
+        .build()
+        .unwrap();
+    let toml = toml::to_string(&default_config)?;
+    config_file.write_all(toml.as_bytes())?;
+    Ok(())
 }
