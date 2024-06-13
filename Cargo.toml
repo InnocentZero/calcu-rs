@@ -5,8 +5,11 @@ edition = "2021"
 
 [dependencies]
 anyhow = "1.0.86"
+chrono = "0.4.38"
 clap = { version = "4.5.6", features = ["derive"] }
 derive_builder = { version = "0.20.0", features = ["clippy"] }
+pulldown-cmark = "0.11.0"
 ratatui = "0.26.3"
+regex = "1.10.5"
 serde = { version = "1.0.203", features = ["derive"] }
 toml = "0.8.14"

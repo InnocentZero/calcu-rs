@@ -18,6 +18,8 @@ pub struct _Config {
 #[derive(Deserialize, Serialize, Builder, Debug, Clone)]
 pub struct Config {
     data_folder: String,
+    #[builder(default = "String::from(\"~/notes\")")]
+    notes_folder: String,
     #[builder(default = "true")]
     show_keybindings: bool,
     #[builder(default = "CalView::Monthly")]

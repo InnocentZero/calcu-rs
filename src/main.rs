@@ -8,6 +8,7 @@ use clap::Parser;
 mod config;
 use config::_Config;
 
+mod parse;
 use crate::config::get_config_path;
 
 /// A command-line journal logger, scheduler and task manager.
