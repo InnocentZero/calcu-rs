@@ -6,10 +6,9 @@ use std::{
 
 use clap::Parser;
 mod config;
-use config::_Config;
+use config::{get_config_path, UpperConfig};
 
 mod parse;
-use crate::config::get_config_path;
 
 /// A command-line journal logger, scheduler and task manager.
 #[derive(Parser, Debug)]
@@ -62,10 +61,11 @@ fn main() -> Result<()> {
         })?;
     }
 
-    let config = _Config::try_parse(&config_file).map_err(|e| {
+    let config = UpperConfig::try_parse(&config_file).map_err(|e| {
         eprintln!("Error occured in reading config file!");
         eprintln!("{e:?}");
         io::ErrorKind::NotFound
     })?;
+
     todo!();
 }

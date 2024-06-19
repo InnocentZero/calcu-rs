@@ -11,7 +11,7 @@ use std::{
 };
 
 #[derive(Deserialize, Serialize, Builder, Debug)]
-pub struct _Config {
+pub struct UpperConfig {
     config: Config,
 }
 
@@ -51,13 +51,13 @@ pub enum CalView {
     ThreeDay,
 }
 
-impl _Config {
+impl UpperConfig {
     pub fn try_parse(config_file: &PathBuf) -> Result<Self> {
         let mut buf = String::new();
         let config_file = File::open(config_file)?;
         let mut reader = BufReader::new(config_file);
         reader.read_to_string(&mut buf)?;
-        let config: _Config = toml::from_str(buf.as_str())?;
+        let config: UpperConfig = toml::from_str(buf.as_str())?;
         Ok(config)
     }
 }
@@ -90,14 +90,16 @@ pub fn write_default_config(config_path: &PathBuf) -> Result<()> {
         .data_folder(
             config_path
                 .parent()
-                .ok_or(anyhow!("Cannot find the directory out of the filepath."))?
+                .ok_or(anyhow!(
+                    "Cannot find the directory out of the filepath."
+                ))?
                 .to_str()
                 .ok_or(anyhow!("Ideally shouldn't happen??"))?
                 .into(),
         )
         .build()
         .unwrap();
-    let default_config = _ConfigBuilder::default()
+    let default_config = UpperConfigBuilder::default()
         .config(default_inner)
         .build()
         .unwrap();
