@@ -3,35 +3,56 @@ use chrono::{NaiveDate, NaiveTime};
 use pulldown_cmark::{BlockQuoteKind, Event, Options, Parser, Tag, TagEnd};
 use regex::Regex;
 use std::{
+    collections::HashMap,
     fs::File,
     io::{BufReader, Read},
     iter::Peekable,
     path::PathBuf,
+    str::FromStr,
 };
 
+#[derive(Debug)]
 pub struct Schedule {
-    events: Vec<CalEvent>,
+    events: HashMap<String, CalEvent>,
     comments: Vec<Comment>,
     todos: Vec<ToDo>,
 }
 
+#[derive(Debug)]
 pub struct CalEvent {
-    time_interval: Option<(NaiveTime, NaiveTime)>,
-    name: String,
-    description: String,
+    time_interval: (Option<NaiveTime>, Option<NaiveTime>),
+    // TODO: Figure out if description is feasible or not
+    // description: String,
 }
 
+#[derive(Debug)]
 pub struct Comment {
     time_of_write: NaiveTime,
     comment: String,
 }
 
+#[derive(Debug)]
 pub struct ToDo {
     time_of_write: Option<NaiveTime>,
     todo: String,
     deadline: Option<NaiveDate>,
     done: bool,
 }
+
+struct Format {
+    re: &'static str,
+    fmt: &'static str,
+}
+
+const TIME_FMT: Format = Format {
+    re: "[0-9]{2}:[0-9]{2} [AP]M",
+    fmt: "%I:%M %p",
+};
+
+const DATE_FMT: Format = Format {
+    re: "[0-9]{4}-[0-9]{2}-[0-9]{2}",
+    fmt: "%Y-%m-%d",
+};
 
 pub fn parse(date: &NaiveDate, path: &mut PathBuf) -> Result<Schedule> {
     let filename = format!("{}.md", date.format("%Y_%m_%d"));
@@ -42,23 +63,34 @@ pub fn parse(date: &NaiveDate, path: &mut PathBuf) -> Result<Schedule> {
     let mut contents = String::new();
     reader.read_to_string(&mut contents)?;
 
-    let deadline_search = Regex::new(r"DEADLINE: [0-9]{4}-[0-9]{2}-[0-9]{2}").unwrap();
-    let time_search = Regex::new(r"[0-9]{2}:[0-9]{2} [AP]M").unwrap();
+    let mut deadline = r"DEADLINE: ".to_string();
+    deadline.push_str(DATE_FMT.re);
+    let deadline_search = Regex::new(&deadline).unwrap();
 
-    let start_search = Regex::new(r"START: [0-9]{2}:[0-9]{2} [AP]M").unwrap();
-    let end_search = Regex::new(r"END: [0-9]{2}:[0-9]{2} [AP]M").unwrap();
+    let mut time = r"AT: ".to_string();
+    time.push_str(TIME_FMT.re);
+    let time_search = Regex::new(&time).unwrap();
 
-    let mut tasks = Vec::new();
-    // let mut events = Vec::new();
+    let mut end = r"END: ".to_string();
+    end.push_str(TIME_FMT.re);
+    let end_search = Regex::new(&end).unwrap();
+
+    let all_day_search = Regex::new(r"ALL DAY").unwrap();
+
+    let mut todos = Vec::new();
+    let mut events = HashMap::new();
     let mut comments = Vec::new();
 
-    let mut parse_stream =
-        Parser::new_ext(&contents, Options::ENABLE_TASKLISTS | Options::ENABLE_GFM).peekable();
+    let mut parse_stream = Parser::new_ext(
+        &contents,
+        Options::ENABLE_TASKLISTS | Options::ENABLE_GFM,
+    )
+    .peekable();
 
     while let Some(content) = parse_stream.next() {
         match content {
             Event::TaskListMarker(done) => parse_tasks(
-                &mut tasks,
+                &mut todos,
                 done,
                 &mut parse_stream,
                 &deadline_search,
@@ -67,12 +99,84 @@ pub fn parse(date: &NaiveDate, path: &mut PathBuf) -> Result<Schedule> {
             Event::Start(Tag::BlockQuote(Some(BlockQuoteKind::Note))) => {
                 parse_comments(&mut comments, &time_search, &mut parse_stream)
             }
-            // TODO: decide on the syntax for Schedules
-            // Event::
-            _ => todo!(),
+            Event::Start(Tag::BlockQuote(Some(BlockQuoteKind::Important))) => {
+                parse_schedule(
+                    &mut events,
+                    &time_search,
+                    &end_search,
+                    &all_day_search,
+                    &mut parse_stream,
+                );
+            }
+            _ => continue,
         }
     }
-    todo!()
+    Ok(Schedule {
+        events,
+        comments,
+        todos,
+    })
+}
+
+fn parse_schedule(
+    events: &mut HashMap<String, CalEvent>,
+    start_search: &Regex,
+    end_search: &Regex,
+    all_day_search: &Regex,
+    parse_stream: &mut Peekable<Parser>,
+) {
+    let mut content = String::new();
+
+    while parse_stream.peek() != Some(&Event::End(TagEnd::BlockQuote)) {
+        if let Some(Event::Text(node)) = parse_stream.next() {
+            content.push_str(&node);
+            content.push('\n');
+        }
+    }
+
+    let start_time = start_search.find(&content);
+    if let Some(time) = start_time {
+        let name = content.replace(time.as_str(), "");
+        let time_interval = (
+            Some(
+                NaiveTime::parse_from_str(
+                    time.as_str().split_once(':').unwrap().1.trim(),
+                    "%I:%M %p",
+                )
+                .unwrap_or_default(),
+            ),
+            None,
+        );
+        events.insert(name, CalEvent { time_interval });
+        return;
+    }
+
+    let all_day = all_day_search.find(&content);
+    if let Some(time) = all_day {
+        let name = content.replace(time.as_str(), "");
+        let time_interval = (None, None);
+        events.insert(name, CalEvent { time_interval });
+        return;
+    }
+
+    let end_time = end_search.find(&content);
+    if let Some(time) = end_time {
+        let name = content.replace(time.as_str(), "");
+        let cal_event = events.get_mut(&name).unwrap();
+        cal_event.time_interval = (
+            Some(
+                cal_event
+                    .time_interval
+                    .0
+                    .unwrap_or(NaiveTime::from_hms_opt(00, 00, 00).unwrap()),
+            ),
+            NaiveTime::parse_from_str(
+                time.as_str().split_once(':').unwrap().1.trim(),
+                "%I:%M %p",
+            )
+            .ok(),
+        );
+    }
 }
 
 fn parse_tasks(
@@ -90,10 +194,20 @@ fn parse_tasks(
             .replace(deadline.map_or("", |date| date.into()), "")
             .replace(time_of_write.map_or("", |time| time.into()), "");
 
-        let deadline =
-            deadline.map(|date| NaiveDate::parse_from_str(date.into(), "%Y-%m-%d").unwrap());
-        let time_of_write =
-            time_of_write.map(|time| NaiveTime::parse_from_str(time.into(), "%Y-%m-%d").unwrap());
+        let deadline = deadline.map(|date| {
+            NaiveDate::parse_from_str(
+                date.as_str().split_once(':').unwrap().1.trim(),
+                "%Y-%m-%d",
+            )
+            .unwrap()
+        });
+        let time_of_write = time_of_write.map(|time| {
+            NaiveTime::parse_from_str(
+                time.as_str().split_once(':').unwrap().1.trim(),
+                "%I:%M %p",
+            )
+            .unwrap()
+        });
 
         tasks.push(ToDo {
             time_of_write,
@@ -113,17 +227,33 @@ fn parse_comments(
     while parse_stream.peek() != Some(&Event::End(TagEnd::BlockQuote)) {
         if let Some(Event::Text(node)) = parse_stream.next() {
             comment.push_str(&node);
+            comment.push('\n');
         }
     }
 
     let time = time_search.find(&comment);
     if let Some(time) = time {
         let comment = comment.replace(time.as_str(), "");
-        let time_of_write = NaiveTime::parse_from_str(time.into(), "%Y-%m-%d").unwrap();
+        let time_of_write = NaiveTime::parse_from_str(
+            time.as_str().split_once(':').unwrap().1.trim(),
+            "%I:%M %p",
+        )
+        .unwrap();
 
         comments.push(Comment {
             time_of_write,
             comment,
         })
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    #[test]
+    fn check_file_parser() {
+        let date = NaiveDate::from_ymd_opt(2024, 6, 19).unwrap();
+        let sched = parse(&date, PathBuf::from_str("tests").as_mut().unwrap());
+        println!("{:?}", sched.unwrap());
     }
 }
