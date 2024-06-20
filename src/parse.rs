@@ -11,38 +11,51 @@ use std::{
     path::PathBuf,
 };
 
+pub fn parse_sequence(
+    start_date: &NaiveDate,
+    end_date: &NaiveDate,
+    path: &mut PathBuf,
+) -> structs::Schedule {
+    let mut day_iter = start_date.iter_days().peekable();
 
+    let done_todos = Vec::new();
+    let tbd_todos = Vec::new();
+    let events = HashMap::new();
+    let comments = Vec::new();
 
+    let all_regexes = structs::init_regexes();
 
+    let mut sched = structs::Schedule {
+        events,
+        comments,
+        done_todos,
+        tbd_todos,
+    };
 
+    while day_iter.peek().unwrap() != end_date {
+        let date = day_iter.next().unwrap();
+        if parse_one_day(&date, path, &all_regexes, &mut sched).is_err() {
+            path.pop();
+            continue;
+        }
+        path.pop();
+    }
+    sched
 }
 
-pub fn parse(date: &NaiveDate, path: &mut PathBuf) -> Result<Schedule> {
+pub fn parse_one_day(
+    date: &NaiveDate,
+    path: &mut PathBuf,
+    all_regexes: &structs::AllRegexes,
+    sched: &mut structs::Schedule,
+) -> Result<()> {
     let filename = format!("{}.md", date.format("%Y_%m_%d"));
     path.push(filename);
-    let file = File::open(path)?;
+    let file = File::open(&path)?;
 
     let mut reader = BufReader::new(file);
     let mut contents = String::new();
     reader.read_to_string(&mut contents)?;
-
-    let mut deadline = r"DEADLINE: ".to_string();
-    deadline.push_str(DATE_FMT.re);
-    let deadline_search = Regex::new(&deadline).unwrap();
-
-    let mut time = r"AT: ".to_string();
-    time.push_str(TIME_FMT.re);
-    let time_search = Regex::new(&time).unwrap();
-
-    let mut end = r"END: ".to_string();
-    end.push_str(TIME_FMT.re);
-    let end_search = Regex::new(&end).unwrap();
-
-    let all_day_search = Regex::new(r"ALL DAY").unwrap();
-
-    let mut todos = Vec::new();
-    let mut events = HashMap::new();
-    let mut comments = Vec::new();
 
     let mut parse_stream = Parser::new_ext(
         &contents,
@@ -53,32 +66,34 @@ pub fn parse(date: &NaiveDate, path: &mut PathBuf) -> Result<Schedule> {
     while let Some(content) = parse_stream.next() {
         match content {
             Event::TaskListMarker(done) => parse_tasks(
-                &mut todos,
+                &mut sched.done_todos,
+                &mut sched.tbd_todos,
                 done,
                 &mut parse_stream,
-                &deadline_search,
-                &time_search,
+                &all_regexes.deadline,
+                &all_regexes.at_time,
             ),
             Event::Start(Tag::BlockQuote(Some(BlockQuoteKind::Note))) => {
-                parse_comments(&mut comments, &time_search, &mut parse_stream)
+                parse_comments(
+                    &mut sched.comments,
+                    &all_regexes.at_time,
+                    &mut parse_stream,
+                )
             }
             Event::Start(Tag::BlockQuote(Some(BlockQuoteKind::Important))) => {
                 parse_schedule(
-                    &mut events,
-                    &time_search,
-                    &end_search,
-                    &all_day_search,
+                    &mut sched.events,
+                    &all_regexes.at_time,
+                    &all_regexes.end,
+                    &all_regexes.all_day,
                     &mut parse_stream,
+                    date,
                 );
             }
             _ => continue,
         }
     }
-    Ok(Schedule {
-        events,
-        comments,
-        todos,
-    })
+    Ok(())
 }
 
 fn parse_schedule(
@@ -87,6 +102,7 @@ fn parse_schedule(
     end_search: &Regex,
     all_day_search: &Regex,
     parse_stream: &mut Peekable<Parser>,
+    date: &NaiveDate,
 ) {
     let mut content = String::new();
 
@@ -102,15 +118,17 @@ fn parse_schedule(
         let name = content.replace(time.as_str(), "");
         let time_interval = (
             Some(
-                NaiveTime::parse_from_str(
-                    time.as_str().split_once(':').unwrap().1.trim(),
-                    "%I:%M %p",
-                )
-                .unwrap_or_default(),
+                date.and_time(
+                    NaiveTime::parse_from_str(
+                        time.as_str().split_once(':').unwrap().1.trim(),
+                        structs::TIME_FMT.fmt,
+                    )
+                    .unwrap_or_default(),
+                ),
             ),
             None,
         );
-        events.insert(name, CalEvent { time_interval });
+        events.insert(name, structs::CalEvent { time_interval });
         return;
     }
 
@@ -118,7 +136,7 @@ fn parse_schedule(
     if let Some(time) = all_day {
         let name = content.replace(time.as_str(), "");
         let time_interval = (None, None);
-        events.insert(name, CalEvent { time_interval });
+        events.insert(name, structs::CalEvent { time_interval });
         return;
     }
 
@@ -127,17 +145,15 @@ fn parse_schedule(
         let name = content.replace(time.as_str(), "");
         let cal_event = events.get_mut(&name).unwrap();
         cal_event.time_interval = (
-            Some(
-                cal_event
-                    .time_interval
-                    .0
-                    .unwrap_or(NaiveTime::from_hms_opt(00, 00, 00).unwrap()),
-            ),
+            Some(cal_event.time_interval.0.unwrap_or(
+                date.and_time(NaiveTime::from_hms_opt(00, 00, 00).unwrap()),
+            )),
             NaiveTime::parse_from_str(
                 time.as_str().split_once(':').unwrap().1.trim(),
                 structs::TIME_FMT.fmt,
             )
-            .ok(),
+            .ok()
+            .map(|time| date.and_time(time)),
         );
     }
 }
@@ -222,9 +238,36 @@ mod test {
     use std::str::FromStr;
 
     #[test]
-    fn check_file_parser() {
+    fn check_file_parser_single() {
         let date = NaiveDate::from_ymd_opt(2024, 6, 19).unwrap();
-        let sched = parse(&date, PathBuf::from_str("tests").as_mut().unwrap());
-        println!("{:?}", sched.unwrap());
+        let all_regexes = structs::init_regexes();
+        let mut sched = structs::Schedule {
+            events: HashMap::new(),
+            comments: Vec::new(),
+            done_todos: Vec::new(),
+            tbd_todos: Vec::new(),
+        };
+
+        assert!(parse_one_day(
+            &date,
+            PathBuf::from_str("tests").as_mut().unwrap(),
+            &all_regexes,
+            &mut sched,
+        )
+        .is_ok());
+        println!("{:#?}", sched);
+    }
+
+    #[test]
+    fn check_file_parser_range() {
+        let start_date = NaiveDate::from_ymd_opt(2024, 6, 19).unwrap();
+        let end_date = NaiveDate::from_ymd_opt(2024, 6, 24).unwrap();
+
+        let sched = parse_sequence(
+            &start_date,
+            &end_date,
+            PathBuf::from_str("tests").as_mut().unwrap(),
+        );
+        println!("{:#?}", sched);
     }
 }
