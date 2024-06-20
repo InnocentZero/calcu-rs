@@ -19,7 +19,7 @@ pub struct UpperConfig {
 pub struct Config {
     data_folder: String,
     #[builder(default = "String::from(\"~/notes\")")]
-    notes_folder: String,
+    pub notes_folder: String,
     #[builder(default = "true")]
     show_keybindings: bool,
     #[builder(default = "CalView::Monthly")]
