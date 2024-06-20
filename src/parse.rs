@@ -1,3 +1,4 @@
+use crate::structs;
 use anyhow::Result;
 use chrono::{NaiveDate, NaiveTime};
 use pulldown_cmark::{BlockQuoteKind, Event, Options, Parser, Tag, TagEnd};
@@ -8,51 +9,13 @@ use std::{
     io::{BufReader, Read},
     iter::Peekable,
     path::PathBuf,
-    str::FromStr,
 };
 
-#[derive(Debug)]
-pub struct Schedule {
-    events: HashMap<String, CalEvent>,
-    comments: Vec<Comment>,
-    todos: Vec<ToDo>,
+
+
+
+
 }
-
-#[derive(Debug)]
-pub struct CalEvent {
-    time_interval: (Option<NaiveTime>, Option<NaiveTime>),
-    // TODO: Figure out if description is feasible or not
-    // description: String,
-}
-
-#[derive(Debug)]
-pub struct Comment {
-    time_of_write: NaiveTime,
-    comment: String,
-}
-
-#[derive(Debug)]
-pub struct ToDo {
-    time_of_write: Option<NaiveTime>,
-    todo: String,
-    deadline: Option<NaiveDate>,
-    done: bool,
-}
-
-struct Format {
-    re: &'static str,
-    fmt: &'static str,
-}
-
-const TIME_FMT: Format = Format {
-    re: "[0-9]{2}:[0-9]{2} [AP]M",
-    fmt: "%I:%M %p",
-};
-
-const DATE_FMT: Format = Format {
-    re: "[0-9]{4}-[0-9]{2}-[0-9]{2}",
-    fmt: "%Y-%m-%d",
-};
 
 pub fn parse(date: &NaiveDate, path: &mut PathBuf) -> Result<Schedule> {
     let filename = format!("{}.md", date.format("%Y_%m_%d"));
@@ -119,7 +82,7 @@ pub fn parse(date: &NaiveDate, path: &mut PathBuf) -> Result<Schedule> {
 }
 
 fn parse_schedule(
-    events: &mut HashMap<String, CalEvent>,
+    events: &mut HashMap<String, structs::CalEvent>,
     start_search: &Regex,
     end_search: &Regex,
     all_day_search: &Regex,
@@ -172,7 +135,7 @@ fn parse_schedule(
             ),
             NaiveTime::parse_from_str(
                 time.as_str().split_once(':').unwrap().1.trim(),
-                "%I:%M %p",
+                structs::TIME_FMT.fmt,
             )
             .ok(),
         );
@@ -180,7 +143,8 @@ fn parse_schedule(
 }
 
 fn parse_tasks(
-    tasks: &mut Vec<ToDo>,
+    todos: &mut Vec<structs::ToDo>,
+    tbd: &mut Vec<structs::ToDo>,
     done: bool,
     parse_stream: &mut Peekable<Parser>,
     deadline_search: &Regex,
@@ -197,29 +161,34 @@ fn parse_tasks(
         let deadline = deadline.map(|date| {
             NaiveDate::parse_from_str(
                 date.as_str().split_once(':').unwrap().1.trim(),
-                "%Y-%m-%d",
+                structs::DATE_FMT.fmt,
             )
             .unwrap()
         });
         let time_of_write = time_of_write.map(|time| {
             NaiveTime::parse_from_str(
                 time.as_str().split_once(':').unwrap().1.trim(),
-                "%I:%M %p",
+                structs::TIME_FMT.fmt,
             )
             .unwrap()
         });
 
-        tasks.push(ToDo {
+        let task = structs::ToDo {
             time_of_write,
             todo,
             deadline,
             done,
-        });
+        };
+        if !done {
+            tbd.push(task);
+        } else {
+            todos.push(task);
+        }
     }
 }
 
 fn parse_comments(
-    comments: &mut Vec<Comment>,
+    comments: &mut Vec<structs::Comment>,
     time_search: &Regex,
     parse_stream: &mut Peekable<Parser>,
 ) {
@@ -236,11 +205,11 @@ fn parse_comments(
         let comment = comment.replace(time.as_str(), "");
         let time_of_write = NaiveTime::parse_from_str(
             time.as_str().split_once(':').unwrap().1.trim(),
-            "%I:%M %p",
+            structs::TIME_FMT.fmt,
         )
         .unwrap();
 
-        comments.push(Comment {
+        comments.push(structs::Comment {
             time_of_write,
             comment,
         })
@@ -250,6 +219,8 @@ fn parse_comments(
 #[cfg(test)]
 mod test {
     use super::*;
+    use std::str::FromStr;
+
     #[test]
     fn check_file_parser() {
         let date = NaiveDate::from_ymd_opt(2024, 6, 19).unwrap();
