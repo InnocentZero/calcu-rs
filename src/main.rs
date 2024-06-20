@@ -42,17 +42,15 @@ fn main() -> Result<()> {
             io::ErrorKind::NotFound
         })?;
 
-        {
-            let file = File::create(&config_file).map_err(|e| {
-                eprintln!("Error occured: {e:?}");
-                io::ErrorKind::NotFound
-            })?;
+        let file = File::create(&config_file).map_err(|e| {
+            eprintln!("Error occured: {e:?}");
+            io::ErrorKind::NotFound
+        })?;
 
-            file.sync_all().map_err(|e| {
-                eprintln!("Error occured: {e:?}");
-                io::ErrorKind::NotFound
-            })?;
-        }
+        file.sync_all().map_err(|e| {
+            eprintln!("Error occured: {e:?}");
+            io::ErrorKind::NotFound
+        })?;
 
         config::write_default_config(&config_file).map_err(|e| {
             eprintln!("Error occured while writing the default config.");
