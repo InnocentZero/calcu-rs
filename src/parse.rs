@@ -1,4 +1,4 @@
-use crate::structs;
+use crate::structs::{self, TimeInterval};
 use anyhow::Result;
 use chrono::{NaiveDate, NaiveTime};
 use pulldown_cmark::{BlockQuoteKind, Event, Options, Parser, Tag, TagEnd};
@@ -75,6 +75,7 @@ pub fn parse_one_day(
             ),
             Event::Start(Tag::BlockQuote(Some(BlockQuoteKind::Note))) => {
                 parse_comments(
+                    date,
                     &mut sched.comments,
                     &all_regexes.at_time,
                     &mut parse_stream,
@@ -117,26 +118,40 @@ fn parse_schedule(
     if let Some(time) = start_time {
         let name = content.replace(time.as_str(), "");
         let time_interval = (
-            Some(
-                date.and_time(
+            TimeInterval((
+                *date,
+                Some(
                     NaiveTime::parse_from_str(
                         time.as_str().split_once(':').unwrap().1.trim(),
                         structs::TIME_FMT.fmt,
                     )
                     .unwrap_or_default(),
                 ),
-            ),
-            None,
+            )),
+            TimeInterval((*date, None)),
         );
-        events.insert(name, structs::CalEvent { time_interval });
+        events.insert(
+            name,
+            structs::CalEvent {
+                start_time: time_interval.0,
+                end_time: time_interval.1,
+            },
+        );
         return;
     }
 
     let all_day = all_day_search.find(&content);
     if let Some(time) = all_day {
         let name = content.replace(time.as_str(), "");
-        let time_interval = (None, None);
-        events.insert(name, structs::CalEvent { time_interval });
+        let time_interval =
+            (TimeInterval((*date, None)), TimeInterval((*date, None)));
+        events.insert(
+            name,
+            structs::CalEvent {
+                start_time: time_interval.0,
+                end_time: time_interval.1,
+            },
+        );
         return;
     }
 
@@ -144,17 +159,25 @@ fn parse_schedule(
     if let Some(time) = end_time {
         let name = content.replace(time.as_str(), "");
         let cal_event = events.get_mut(&name).unwrap();
-        cal_event.time_interval = (
-            Some(cal_event.time_interval.0.unwrap_or(
-                date.and_time(NaiveTime::from_hms_opt(00, 00, 00).unwrap()),
-            )),
-            NaiveTime::parse_from_str(
-                time.as_str().split_once(':').unwrap().1.trim(),
-                structs::TIME_FMT.fmt,
-            )
-            .ok()
-            .map(|time| date.and_time(time)),
-        );
+        cal_event.start_time =
+            TimeInterval((
+                cal_event.start_time.0 .0,
+                Some(
+                    cal_event.start_time.0 .1.unwrap_or(
+                        NaiveTime::from_hms_opt(00, 00, 00).unwrap(),
+                    ),
+                ),
+            ));
+        cal_event.end_time = TimeInterval((
+            *date,
+            Some(
+                NaiveTime::parse_from_str(
+                    time.as_str().split_once(':').unwrap().1.trim(),
+                    structs::TIME_FMT.fmt,
+                )
+                .unwrap(),
+            ),
+        ));
     }
 }
 
@@ -204,6 +227,7 @@ fn parse_tasks(
 }
 
 fn parse_comments(
+    date: &NaiveDate,
     comments: &mut Vec<structs::Comment>,
     time_search: &Regex,
     parse_stream: &mut Peekable<Parser>,
@@ -219,11 +243,13 @@ fn parse_comments(
     let time = time_search.find(&comment);
     if let Some(time) = time {
         let comment = comment.replace(time.as_str(), "");
-        let time_of_write = NaiveTime::parse_from_str(
-            time.as_str().split_once(':').unwrap().1.trim(),
-            structs::TIME_FMT.fmt,
-        )
-        .unwrap();
+        let time_of_write = date.and_time(
+            NaiveTime::parse_from_str(
+                time.as_str().split_once(':').unwrap().1.trim(),
+                structs::TIME_FMT.fmt,
+            )
+            .unwrap(),
+        );
 
         comments.push(structs::Comment {
             time_of_write,

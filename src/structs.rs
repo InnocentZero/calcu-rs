@@ -1,6 +1,21 @@
 use chrono::{NaiveDate, NaiveDateTime, NaiveTime};
 use regex::Regex;
-use std::collections::HashMap;
+use std::{collections::HashMap, fmt::Display};
+use tabled::Tabled;
+
+#[derive(Debug)]
+pub struct TimeInterval(pub (NaiveDate, Option<NaiveTime>));
+
+impl Display for TimeInterval {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{} - ", self.0 .0)?;
+        match self.0 .1 {
+            Some(time) => write!(f, "{}", time),
+            None => write!(f, "All day"),
+        }?;
+        Ok(())
+    }
+}
 
 pub struct AllRegexes {
     pub deadline: Regex,
@@ -32,25 +47,56 @@ pub struct Schedule {
     pub tbd_todos: Vec<ToDo>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Tabled)]
 pub struct CalEvent {
-    pub time_interval: (Option<NaiveDateTime>, Option<NaiveDateTime>),
+    #[tabled(rename = "Start Time")]
+    pub start_time: TimeInterval,
+    #[tabled(rename = "End Time")]
+    pub end_time: TimeInterval,
     // TODO: Figure out if description is feasible or not
     // description: String,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Tabled)]
 pub struct Comment {
-    pub time_of_write: NaiveTime,
+    #[tabled(rename = "Time of Write")]
+    pub time_of_write: NaiveDateTime,
+    #[tabled(rename = "Logs")]
     pub comment: String,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Tabled)]
 pub struct ToDo {
+    #[tabled(rename = "Time of Write", display_with = "display_tow")]
     pub time_of_write: Option<NaiveTime>,
+    #[tabled(rename = "ToDo")]
     pub todo: String,
+    #[tabled(rename = "Deadline", display_with = "display_deadline")]
     pub deadline: Option<NaiveDate>,
+    #[tabled(rename = "Done", display_with = "todo_status")]
     pub done: bool,
+}
+
+fn todo_status(status: &bool) -> String {
+    if *status {
+        "Yes".to_string()
+    } else {
+        "No".to_string()
+    }
+}
+
+fn display_tow(tow: &Option<NaiveTime>) -> String {
+    match tow {
+        Some(time) => format!("{time}"),
+        None => "None".to_string(),
+    }
+}
+
+fn display_deadline(tow: &Option<NaiveDate>) -> String {
+    match tow {
+        Some(time) => format!("{time}"),
+        None => "None".to_string(),
+    }
 }
 
 pub fn init_regexes() -> AllRegexes {

@@ -10,6 +10,7 @@ use config::{get_config_path, UpperConfig};
 
 mod parse;
 mod structs;
+mod tables;
 
 /// A command-line journal logger, scheduler and task manager.
 #[derive(Parser, Debug)]
