@@ -114,6 +114,8 @@ fn parse_schedule(
         }
     }
 
+    // content.trim();
+
     let start_time = start_search.find(&content);
     if let Some(time) = start_time {
         let name = content.replace(time.as_str(), "");
@@ -131,7 +133,7 @@ fn parse_schedule(
             TimeInterval((*date, None)),
         );
         events.insert(
-            name,
+            name.trim().to_string(),
             structs::CalEvent {
                 start_time: time_interval.0,
                 end_time: time_interval.1,
@@ -146,7 +148,7 @@ fn parse_schedule(
         let time_interval =
             (TimeInterval((*date, None)), TimeInterval((*date, None)));
         events.insert(
-            name,
+            name.trim().to_string(),
             structs::CalEvent {
                 start_time: time_interval.0,
                 end_time: time_interval.1,
@@ -158,7 +160,7 @@ fn parse_schedule(
     let end_time = end_search.find(&content);
     if let Some(time) = end_time {
         let name = content.replace(time.as_str(), "");
-        let cal_event = events.get_mut(&name).unwrap();
+        let cal_event = events.get_mut(name.trim()).unwrap();
         cal_event.start_time =
             TimeInterval((
                 cal_event.start_time.0 .0,
