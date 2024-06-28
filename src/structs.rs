@@ -1,6 +1,6 @@
 use chrono::{NaiveDate, NaiveDateTime, NaiveTime};
 use regex::Regex;
-use std::{collections::HashMap, fmt::Display};
+use std::{collections::HashMap, fmt::Display, ops::Deref};
 use tabled::Tabled;
 
 #[derive(Debug)]
@@ -14,6 +14,13 @@ impl Display for TimeInterval {
             None => write!(f, "All day"),
         }?;
         Ok(())
+    }
+}
+
+impl Deref for TimeInterval {
+    type Target = (NaiveDate, Option<NaiveTime>);
+    fn deref(&self) -> &Self::Target {
+        &self.0
     }
 }
 
@@ -47,11 +54,9 @@ pub struct Schedule {
     pub tbd_todos: Vec<ToDo>,
 }
 
-#[derive(Debug, Tabled)]
+#[derive(Debug)]
 pub struct CalEvent {
-    #[tabled(rename = "Start Time")]
     pub start_time: TimeInterval,
-    #[tabled(rename = "End Time")]
     pub end_time: TimeInterval,
     // TODO: Figure out if description is feasible or not
     // description: String,
