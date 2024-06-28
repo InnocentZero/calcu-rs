@@ -1,5 +1,5 @@
 [package]
-name = "calcure_clone"
+name = "calcu-rs"
 version = "0.1.0"
 edition = "2021"
 
@@ -13,3 +13,18 @@ regex = "1.10.5"
 serde = { version = "1.0.203", features = ["derive"] }
 tabled = "0.15.0"
 toml = "0.8.14"
+
+[dev-dependencies]
+criterion = { version = "0.4", features = ["html_reports"] }
+
+[[bench]]
+name = "my_benchmarks"
+harness = false
+
+[lib]
+bench = false
+
+[[bin]]
+name = "crs"
+path = "src/main.rs"
+bench = false
