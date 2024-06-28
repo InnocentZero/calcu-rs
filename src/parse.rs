@@ -50,7 +50,7 @@ pub fn parse_one_day(
 ) -> Result<()> {
     let filename = format!("{}.md", date.format("%Y-%m-%d"));
     path.push(filename);
-    let file = File::open(&path)?;
+    let file = File::open(path)?;
 
     let mut reader = BufReader::new(file);
     let mut contents = String::new();
