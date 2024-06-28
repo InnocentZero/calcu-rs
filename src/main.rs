@@ -2,11 +2,15 @@ use std::{
     fs::{create_dir_all, File},
     io::{self, Result},
     path::{Path, PathBuf},
+    str::FromStr,
 };
 
-use clap::Parser;
+use chrono::{Local, NaiveDate};
+use clap::{Parser, Subcommand};
 mod config;
 use config::{get_config_path, UpperConfig};
+use parse::parse_sequence;
+use tables::{print_comments, print_todos};
 
 mod parse;
 mod structs;
@@ -14,16 +18,37 @@ mod tables;
 
 /// A command-line journal logger, scheduler and task manager.
 #[derive(Parser, Debug)]
+#[command(version, about)]
 struct Args {
     /// Path to config-file
     #[arg(short, long)]
     config: Option<PathBuf>,
+    #[arg(short, long)]
+    notes: Option<PathBuf>,
+    #[command(subcommand)]
+    command: Commands,
+    /// Start date
+    #[arg(short, long)]
+    start_date: Option<NaiveDate>,
+    /// End date
+    #[arg(short, long)]
+    end_date: Option<NaiveDate>,
+}
+
+#[derive(Subcommand, Debug)]
+enum Commands {
+    /// Shows a list of incomplete todos
+    Todo,
+    /// Shows you a schedule of your day
+    Schedule,
+    /// Shows you the logs you record throughout your days
+    Logs,
 }
 
 fn main() -> Result<()> {
     let args = Args::parse();
 
-    let config_file = match args.config {
+    let mut config_file = match args.config {
         Some(path) => Ok(path),
         None => get_config_path(),
     }
@@ -67,5 +92,16 @@ fn main() -> Result<()> {
         io::ErrorKind::NotFound
     })?;
 
-    todo!();
+    let start_date = args.start_date.unwrap_or(config.start_date);
+    let end_date = args.end_date.unwrap_or(Local::now().date_naive());
+
+    let schedule = parse_sequence(
+        &start_date,
+        &end_date,
+        &mut PathBuf::from_str(&config.notes_folder).unwrap(),
+    );
+    print_todos(&schedule.tbd_todos, &config.todos);
+    print_comments(&schedule.comments, &config.comments);
+
+    Ok(())
 }

@@ -48,7 +48,7 @@ pub fn parse_one_day(
     all_regexes: &structs::AllRegexes,
     sched: &mut structs::Schedule,
 ) -> Result<()> {
-    let filename = format!("{}.md", date.format("%Y_%m_%d"));
+    let filename = format!("{}.md", date.format("%Y-%m-%d"));
     path.push(filename);
     let file = File::open(&path)?;
 
