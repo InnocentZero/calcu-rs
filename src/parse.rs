@@ -69,6 +69,7 @@ pub fn parse_one_day(
                 &mut parse_stream,
                 &all_regexes.deadline,
                 &all_regexes.at_time,
+                date,
             ),
             Event::Start(Tag::BlockQuote(Some(BlockQuoteKind::Note))) => {
                 parse_comments(
@@ -185,6 +186,7 @@ fn parse_tasks(
     parse_stream: &mut Peekable<Parser>,
     deadline_search: &Regex,
     time_search: &Regex,
+    date: &NaiveDate,
 ) {
     if let Some(Event::Text(node)) = parse_stream.peek() {
         let deadline = deadline_search.find(node);
@@ -210,6 +212,7 @@ fn parse_tasks(
         });
 
         let task = structs::ToDo {
+            date: *date,
             time_of_write,
             todo,
             deadline,

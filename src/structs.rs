@@ -71,6 +71,8 @@ pub struct Comment {
 
 #[derive(Debug, Tabled)]
 pub struct ToDo {
+    #[tabled(rename = "Date")]
+    pub date: NaiveDate,
     #[tabled(rename = "Time of Write", display_with = "display_tow")]
     pub time_of_write: Option<NaiveTime>,
     #[tabled(rename = "ToDo")]
