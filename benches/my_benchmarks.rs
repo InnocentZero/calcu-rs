@@ -79,12 +79,28 @@ pub fn parse_sequence_benchmark_long_file(c: &mut Criterion) {
     });
 }
 
+pub fn parse_sequence_one_year(c: &mut Criterion) {
+    let start_date = NaiveDate::from_ymd_opt(2024, 1, 1).unwrap();
+    let end_date = NaiveDate::from_ymd_opt(2024, 12, 30).unwrap();
+
+    c.bench_function("parse_sequence one_year", |b| {
+        b.iter(|| {
+            parse::parse_sequence(
+                black_box(&start_date),
+                black_box(&end_date),
+                black_box(PathBuf::from_str("tests").as_mut().unwrap()),
+            )
+        })
+    });
+}
+
 criterion_group!(
     benches,
     parse_sequence_benchmark,
     parse_sequence_benchmark_100,
     parse_sequence_benchmark_300,
     parse_sequence_benchmark_700,
-    parse_sequence_benchmark_long_file
+    parse_sequence_benchmark_long_file,
+    parse_sequence_one_year
 );
 criterion_main!(benches);
