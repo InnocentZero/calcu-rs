@@ -1,6 +1,7 @@
-use anyhow::{anyhow, Result};
+use anyhow::Result;
 use derive_builder::Builder;
 use serde::{Deserialize, Serialize};
+use tabled::settings::{Style, Theme};
 
 use std::{
     default::Default,
@@ -10,45 +11,97 @@ use std::{
     path::PathBuf,
 };
 
+#[derive(Deserialize, Serialize, Debug, Clone, Copy)]
+pub enum TableStyle {
+    Empty,
+    Extended,
+    Blank,
+    Ascii,
+    Psql,
+    MarkDown,
+    Modern,
+    Sharp,
+    Rounded,
+    ModernRounded,
+    Rst,
+    Dots,
+    AsciiRounded,
+}
+
+impl From<TableStyle> for Theme {
+    fn from(value: TableStyle) -> Self {
+        match value {
+            TableStyle::Empty => Style::empty().into(),
+            TableStyle::Extended => Style::extended().into(),
+            TableStyle::Blank => Style::blank().into(),
+            TableStyle::Ascii => Style::ascii().into(),
+            TableStyle::Psql => Style::psql().into(),
+            TableStyle::MarkDown => Style::markdown().into(),
+            TableStyle::Modern => Style::modern().into(),
+            TableStyle::Sharp => Style::sharp().into(),
+            TableStyle::Rounded => Style::rounded().into(),
+            TableStyle::ModernRounded => Style::modern_rounded().into(),
+            TableStyle::Rst => Style::re_structured_text().into(),
+            TableStyle::Dots => Style::dots().into(),
+            TableStyle::AsciiRounded => Style::ascii_rounded().into(),
+        }
+    }
+}
+
+#[derive(Deserialize, Serialize, Debug, Clone, Copy)]
+pub enum Alignment {
+    Center,
+    Left,
+    Right,
+}
+
+impl From<Alignment> for tabled::settings::Alignment {
+    fn from(value: Alignment) -> Self {
+        match value {
+            Alignment::Center => Self::center(),
+            Alignment::Left => Self::left(),
+            Alignment::Right => Self::right(),
+        }
+    }
+}
+
 #[derive(Deserialize, Serialize, Builder, Debug)]
 pub struct UpperConfig {
-    config: Config,
+    #[builder(default = "String::from(\"~/notes\")")]
+    pub notes_folder: String,
+    pub todos: TodoConfig,
+    pub schedule: ScheduleConfig,
+    pub comments: CommentConfig,
 }
 
 #[derive(Deserialize, Serialize, Builder, Debug, Clone)]
-pub struct Config {
-    data_folder: String,
-    #[builder(default = "String::from(\"~/notes\")")]
-    pub notes_folder: String,
-    #[builder(default = "true")]
-    show_keybindings: bool,
-    #[builder(default = "CalView::Monthly")]
-    default_cal_view: CalView,
-    #[builder(default = "true")]
-    delete_confirmation: bool,
-    #[builder(default = "true")]
-    quit_confirmation: bool,
-    #[builder(default = "40")]
-    right_pane_percent: u8,
-    #[builder(default = "String::from(\"+\")")]
-    event_icon: String,
-    #[builder(default = "String::from(\">\")")]
-    today_icon: String,
-    #[builder(default = "String::from(\"⊕ \")")]
-    task_icon: String,
-    #[builder(default = "String::from(\" \")")]
-    done_icon: String,
-    #[builder(default = "String::from(\" \")")]
-    deadline_icon: String,
+pub struct TodoConfig {
+    #[builder(default = "TableStyle::Empty")]
+    pub table_style: TableStyle,
+    #[builder(default = "(0, 0, 0, 0)")]
+    pub margins: (usize, usize, usize, usize),
+    #[builder(default = "Alignment::Center")]
+    pub alignment: Alignment,
 }
 
-#[derive(Deserialize, Serialize, Copy, Clone, Default, Debug)]
-pub enum CalView {
-    #[default]
-    Monthly,
-    Daily,
-    Weekly,
-    ThreeDay,
+#[derive(Deserialize, Serialize, Builder, Debug, Clone)]
+pub struct ScheduleConfig {
+    #[builder(default = "TableStyle::Empty")]
+    pub table_style: TableStyle,
+    #[builder(default = "(0, 0, 0, 0)")]
+    pub margins: (usize, usize, usize, usize),
+    #[builder(default = "Alignment::Center")]
+    pub alignment: Alignment,
+}
+
+#[derive(Deserialize, Serialize, Builder, Debug, Clone)]
+pub struct CommentConfig {
+    #[builder(default = "TableStyle::Empty")]
+    pub table_style: TableStyle,
+    #[builder(default = "(0, 0, 0, 0)")]
+    pub margins: (usize, usize, usize, usize),
+    #[builder(default = "Alignment::Center")]
+    pub alignment: Alignment,
 }
 
 impl UpperConfig {
@@ -86,23 +139,18 @@ pub fn get_config_path() -> Result<PathBuf> {
 }
 pub fn write_default_config(config_path: &PathBuf) -> Result<()> {
     let mut config_file = File::create(config_path)?;
-    let default_inner = ConfigBuilder::default()
-        .data_folder(
-            config_path
-                .parent()
-                .ok_or(anyhow!(
-                    "Cannot find the directory out of the filepath."
-                ))?
-                .to_str()
-                .ok_or(anyhow!("Ideally shouldn't happen??"))?
-                .into(),
-        )
-        .build()
-        .unwrap();
+
+    let default_todos = TodoConfigBuilder::default().build().unwrap();
+    let default_schedule = ScheduleConfigBuilder::default().build().unwrap();
+    let default_comments = CommentConfigBuilder::default().build().unwrap();
+
     let default_config = UpperConfigBuilder::default()
-        .config(default_inner)
+        .todos(default_todos)
+        .schedule(default_schedule)
+        .comments(default_comments)
         .build()
         .unwrap();
+
     let toml = toml::to_string(&default_config)?;
     config_file.write_all(toml.as_bytes())?;
     Ok(())
