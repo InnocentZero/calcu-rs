@@ -1,9 +1,3 @@
-use anyhow::Result;
-use chrono::NaiveDate;
-use derive_builder::Builder;
-use serde::{Deserialize, Serialize};
-use tabled::settings::{Style, Theme};
-
 use std::{
     default::Default,
     env,
@@ -11,6 +5,12 @@ use std::{
     io::{BufReader, Read, Write},
     path::PathBuf,
 };
+
+use anyhow::Result;
+use chrono::NaiveDate;
+use derive_builder::Builder;
+use serde::{Deserialize, Serialize};
+use tabled::settings::{Style, Theme};
 
 #[derive(Deserialize, Serialize, Debug, Clone, Copy)]
 pub enum TableStyle {

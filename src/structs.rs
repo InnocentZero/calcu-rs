@@ -1,6 +1,7 @@
+use std::{collections::HashMap, fmt::Display, ops::Deref};
+
 use chrono::{NaiveDate, NaiveDateTime, NaiveTime};
 use regex::Regex;
-use std::{collections::HashMap, fmt::Display, ops::Deref};
 use tabled::Tabled;
 
 #[derive(Debug)]

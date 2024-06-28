@@ -1,14 +1,14 @@
 use std::collections::HashMap;
 
+use crate::{
+    config::{CommentConfig, ScheduleConfig, TodoConfig},
+    structs::{CalEvent, Comment, ToDo},
+};
+
 use tabled::{
     builder::Builder,
     settings::{style::HorizontalLine, Alignment, Margin, Theme},
     Table,
-};
-
-use crate::{
-    config::{CommentConfig, ScheduleConfig, TodoConfig},
-    structs::{CalEvent, Comment, ToDo},
 };
 
 pub fn print_schedule(

@@ -1,15 +1,11 @@
+use std::{collections::HashMap, fs, iter::Peekable, path::PathBuf};
+
 use crate::structs::{self, TimeInterval};
+
 use anyhow::Result;
 use chrono::{NaiveDate, NaiveTime};
 use pulldown_cmark::{BlockQuoteKind, Event, Options, Parser, Tag, TagEnd};
 use regex::Regex;
-use std::{
-    collections::HashMap,
-    fs::File,
-    io::{BufReader, Read},
-    iter::Peekable,
-    path::PathBuf,
-};
 
 pub fn parse_sequence(
     start_date: &NaiveDate,
@@ -50,11 +46,8 @@ pub fn parse_one_day(
 ) -> Result<()> {
     let filename = format!("{}.md", date.format("%Y-%m-%d"));
     path.push(filename);
-    let file = File::open(path)?;
 
-    let mut reader = BufReader::new(file);
-    let mut contents = String::new();
-    reader.read_to_string(&mut contents)?;
+    let contents = fs::read_to_string(&path)?;
 
     let mut parse_stream = Parser::new_ext(
         &contents,
