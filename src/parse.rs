@@ -280,8 +280,8 @@ mod test {
 
     #[test]
     fn check_file_parser_range() {
-        let start_date = NaiveDate::from_ymd_opt(2024, 6, 19).unwrap();
-        let end_date = NaiveDate::from_ymd_opt(2024, 6, 24).unwrap();
+        let start_date = NaiveDate::from_ymd_opt(2024, 6, 1).unwrap();
+        let end_date = NaiveDate::from_ymd_opt(2024, 6, 30).unwrap();
 
         let sched = parse_sequence(
             &start_date,
