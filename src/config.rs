@@ -1,4 +1,5 @@
 use anyhow::Result;
+use chrono::NaiveDate;
 use derive_builder::Builder;
 use serde::{Deserialize, Serialize};
 use tabled::settings::{Style, Theme};
@@ -69,6 +70,8 @@ impl From<Alignment> for tabled::settings::Alignment {
 pub struct UpperConfig {
     #[builder(default = "String::from(\"~/notes\")")]
     pub notes_folder: String,
+    #[builder(default = "NaiveDate::from_ymd_opt(2001, 01, 14).unwrap()")]
+    pub start_date: NaiveDate,
     pub todos: TodoConfig,
     pub schedule: ScheduleConfig,
     pub comments: CommentConfig,
