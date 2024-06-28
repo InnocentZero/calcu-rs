@@ -105,14 +105,9 @@ fn parse_schedule(
 ) {
     let mut content = String::new();
 
-    while parse_stream.peek() != Some(&Event::End(TagEnd::BlockQuote)) {
-        if let Some(Event::Text(node)) = parse_stream.next() {
-            content.push_str(&node);
-            content.push('\n');
-        }
+    if let Some(Event::Text(node)) = parse_stream.peek() {
+        content.push_str(node);
     }
-
-    // content.trim();
 
     let start_time = start_search.find(&content);
     if let Some(time) = start_time {
@@ -131,7 +126,7 @@ fn parse_schedule(
             TimeInterval((*date, None)),
         );
         events.insert(
-            name.trim().to_string(),
+            name,
             structs::CalEvent {
                 start_time: time_interval.0,
                 end_time: time_interval.1,
@@ -146,7 +141,7 @@ fn parse_schedule(
         let time_interval =
             (TimeInterval((*date, None)), TimeInterval((*date, None)));
         events.insert(
-            name.trim().to_string(),
+            name,
             structs::CalEvent {
                 start_time: time_interval.0,
                 end_time: time_interval.1,
@@ -158,7 +153,7 @@ fn parse_schedule(
     let end_time = end_search.find(&content);
     if let Some(time) = end_time {
         let name = content.replace(time.as_str(), "");
-        let cal_event = events.get_mut(name.trim()).unwrap();
+        let cal_event = events.get_mut(&name).unwrap();
         cal_event.start_time =
             TimeInterval((
                 cal_event.start_time.0 .0,
