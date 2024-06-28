@@ -5,16 +5,11 @@ use std::{
     str::FromStr,
 };
 
+use calcu_rs::config::{get_config_path, write_default_config, UpperConfig};
+use calcu_rs::parse::parse_sequence;
+use calcu_rs::tables::{print_comments, print_todos};
 use chrono::{Local, NaiveDate};
 use clap::{Parser, Subcommand};
-mod config;
-use config::{get_config_path, UpperConfig};
-use parse::parse_sequence;
-use tables::{print_comments, print_todos};
-
-mod parse;
-mod structs;
-mod tables;
 
 /// A command-line journal logger, scheduler and task manager.
 #[derive(Parser, Debug)]
@@ -48,7 +43,7 @@ enum Commands {
 fn main() -> Result<()> {
     let args = Args::parse();
 
-    let mut config_file = match args.config {
+    let config_file = match args.config {
         Some(path) => Ok(path),
         None => get_config_path(),
     }
@@ -79,7 +74,7 @@ fn main() -> Result<()> {
             io::ErrorKind::InvalidData
         })?;
 
-        config::write_default_config(&config_file).map_err(|e| {
+        write_default_config(&config_file).map_err(|e| {
             eprintln!("Error occured while writing the default config.");
             eprintln!("{e:?}");
             io::ErrorKind::InvalidInput
