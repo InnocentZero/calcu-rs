@@ -50,7 +50,6 @@ pub const DATE_FMT: Format = Format {
 pub struct Schedule {
     pub events: HashMap<String, CalEvent>,
     pub comments: Vec<Comment>,
-    pub done_todos: Vec<ToDo>,
     pub tbd_todos: Vec<ToDo>,
 }
 
@@ -78,16 +77,6 @@ pub struct ToDo {
     pub todo: String,
     #[tabled(rename = "Deadline", display_with = "display_deadline")]
     pub deadline: Option<NaiveDate>,
-    #[tabled(rename = "Done", display_with = "todo_status")]
-    pub done: bool,
-}
-
-fn todo_status(status: &bool) -> String {
-    if *status {
-        "Yes".to_string()
-    } else {
-        "No".to_string()
-    }
 }
 
 fn display_tow(tow: &Option<NaiveTime>) -> String {

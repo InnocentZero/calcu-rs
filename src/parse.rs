@@ -18,7 +18,6 @@ pub fn parse_sequence(
 ) -> structs::Schedule {
     let mut day_iter = start_date.iter_days().peekable();
 
-    let done_todos = Vec::new();
     let tbd_todos = Vec::new();
     let events = HashMap::new();
     let comments = Vec::new();
@@ -28,7 +27,7 @@ pub fn parse_sequence(
     let mut sched = structs::Schedule {
         events,
         comments,
-        done_todos,
+
         tbd_todos,
     };
 
@@ -65,10 +64,8 @@ pub fn parse_one_day(
 
     while let Some(content) = parse_stream.next() {
         match content {
-            Event::TaskListMarker(done) => parse_tasks(
-                &mut sched.done_todos,
+            Event::TaskListMarker(done) if done => parse_tasks(
                 &mut sched.tbd_todos,
-                done,
                 &mut parse_stream,
                 &all_regexes.deadline,
                 &all_regexes.at_time,
@@ -184,9 +181,7 @@ fn parse_schedule(
 }
 
 fn parse_tasks(
-    todos: &mut Vec<structs::ToDo>,
     tbd: &mut Vec<structs::ToDo>,
-    done: bool,
     parse_stream: &mut Peekable<Parser>,
     deadline_search: &Regex,
     time_search: &Regex,
@@ -218,13 +213,8 @@ fn parse_tasks(
             time_of_write,
             todo,
             deadline,
-            done,
         };
-        if !done {
-            tbd.push(task);
-        } else {
-            todos.push(task);
-        }
+        tbd.push(task);
     }
 }
 
@@ -272,7 +262,6 @@ mod test {
         let mut sched = structs::Schedule {
             events: HashMap::new(),
             comments: Vec::new(),
-            done_todos: Vec::new(),
             tbd_todos: Vec::new(),
         };
 
