@@ -76,7 +76,7 @@ fn main() -> Result<()> {
 
         file.sync_all().map_err(|e| {
             eprintln!("Error occured: {e:?}");
-            io::ErrorKind::NotFound
+            io::ErrorKind::InvalidData
         })?;
 
         config::write_default_config(&config_file).map_err(|e| {
@@ -89,7 +89,7 @@ fn main() -> Result<()> {
     let config = UpperConfig::try_parse(&config_file).map_err(|e| {
         eprintln!("Error occured in reading config file!");
         eprintln!("{e:?}");
-        io::ErrorKind::NotFound
+        io::ErrorKind::InvalidData
     })?;
 
     let start_date = args.start_date.unwrap_or(config.start_date);
