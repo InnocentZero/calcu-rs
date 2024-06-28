@@ -64,7 +64,7 @@ pub fn parse_one_day(
 
     while let Some(content) = parse_stream.next() {
         match content {
-            Event::TaskListMarker(done) if done => parse_tasks(
+            Event::TaskListMarker(done) if !done => parse_tasks(
                 &mut sched.tbd_todos,
                 &mut parse_stream,
                 &all_regexes.deadline,
