@@ -54,9 +54,11 @@ pub struct Schedule {
     pub tbd_todos: Vec<ToDo>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Tabled)]
 pub struct CalEvent {
+    #[tabled(rename = "Start Time")]
     pub start_time: TimeInterval,
+    #[tabled(rename = "End Time")]
     pub end_time: TimeInterval,
     // TODO: Figure out if description is feasible or not
     // description: String,

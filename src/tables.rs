@@ -6,7 +6,6 @@ use crate::{
 };
 
 use tabled::{
-    builder::Builder,
     settings::{
         formatting::AlignmentStrategy, peaker::PriorityMax,
         style::HorizontalLine, Alignment, Format, Margin, Theme, Width,
@@ -19,17 +18,9 @@ pub fn print_schedule(
     config: &ScheduleConfig,
     width: u16,
 ) {
-    let mut builder = Builder::new();
-    builder.push_record(["Schedule", "Start Day and Time", "End Day and Time"]);
-    for (key, value) in cal_events {
-        builder.push_record([
-            key,
-            &format!("{}", value.start_time),
-            &format!("{}", value.end_time),
-        ]);
-    }
-    let mut table = builder.build();
+    let mut table = Table::new(cal_events);
 
+    table.modify((0, 0), Format::content(|_| "Schedule".to_string()));
     let mut horizontals = HashMap::new();
 
     let mut theme: Theme = config.table_style.into();
