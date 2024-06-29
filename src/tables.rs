@@ -51,6 +51,10 @@ pub fn print_schedule(
                 .priority::<PriorityMax>()
                 .keep_words(),
         )
+        .with(Format::content(|s| {
+            s.lines().map(|l| l.trim()).collect::<Vec<_>>().join("\n")
+        }))
+        .with(Width::increase(width as usize))
         .with(alignment)
         .with(AlignmentStrategy::PerLine);
 
@@ -89,6 +93,10 @@ pub fn print_todos(todos: &Vec<ToDo>, config: &TodoConfig, width: u16) {
                 .keep_words()
                 .priority::<PriorityMax>(),
         )
+        .with(Format::content(|s| {
+            s.lines().map(|l| l.trim()).collect::<Vec<_>>().join("\n")
+        }))
+        .with(Width::increase(width as usize))
         .with(alignment)
         .with(AlignmentStrategy::PerLine);
 
@@ -131,6 +139,10 @@ pub fn print_comments(
                 .keep_words()
                 .priority::<PriorityMax>(),
         )
+        .with(Format::content(|s| {
+            s.lines().map(|l| l.trim()).collect::<Vec<_>>().join("\n")
+        }))
+        .with(Width::increase(width as usize))
         .with(alignment)
         .with(Alignment::center_vertical())
         .with(AlignmentStrategy::PerLine);
