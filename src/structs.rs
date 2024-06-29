@@ -11,7 +11,7 @@ impl Display for TimeInterval {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{} - ", self.0 .0)?;
         match self.0 .1 {
-            Some(time) => write!(f, "{}", time),
+            Some(time) => write!(f, "{}", time.format(TIME_FMT.fmt)),
             None => write!(f, "All day"),
         }?;
         Ok(())
@@ -86,7 +86,7 @@ pub struct ToDo {
 
 fn display_tow(tow: &Option<NaiveTime>) -> String {
     match tow {
-        Some(time) => format!("{time}"),
+        Some(time) => time.format(TIME_FMT.fmt).to_string(),
         None => "None".to_string(),
     }
 }
