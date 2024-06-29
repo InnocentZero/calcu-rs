@@ -5,10 +5,14 @@ use std::{
     str::FromStr,
 };
 
-use calcu_rs::config::{get_config_path, write_default_config, UpperConfig};
 use calcu_rs::parse::parse_sequence;
 use calcu_rs::tables::{print_comments, print_todos};
-use chrono::{Local, NaiveDate};
+use calcu_rs::{
+    config::{get_config_path, write_default_config, UpperConfig},
+    tables::print_schedule,
+};
+
+use chrono::{Days, Local, NaiveDate};
 use clap::{Parser, Subcommand};
 use terminal_size::terminal_size;
 
@@ -89,15 +93,17 @@ fn main() -> Result<()> {
     })?;
 
     let start_date = args.start_date.unwrap_or(config.start_date);
-    let end_date = args.end_date.unwrap_or(Local::now().date_naive());
-
-    let schedule = parse_sequence(
-        &start_date,
-        &end_date,
-        &mut PathBuf::from_str(&config.notes_folder).unwrap(),
+    let end_date = args.end_date.unwrap_or(
+        Local::now()
+            .date_naive()
+            .checked_add_days(Days::new(1))
+            .unwrap(),
     );
-    print_todos(&schedule.tbd_todos, &config.todos);
-    print_comments(&schedule.comments, &config.comments);
+
+    let mut notes = args
+        .notes
+        .unwrap_or(PathBuf::from_str(&config.notes_folder).unwrap());
+    let schedule = parse_sequence(&start_date, &end_date, &mut notes);
 
     let (terminal_size::Width(width), terminal_size::Height(_)) =
         terminal_size().unwrap();
