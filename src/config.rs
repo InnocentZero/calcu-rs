@@ -6,9 +6,10 @@ use std::{
     path::PathBuf,
 };
 
-use anyhow::Result;
+use anyhow::{Context, Result};
 use chrono::NaiveDate;
 use derive_builder::Builder;
+use log::{error, trace};
 use serde::{Deserialize, Serialize};
 use tabled::settings::{Style, Theme};
 
@@ -110,29 +111,50 @@ pub struct CommentConfig {
 impl UpperConfig {
     pub fn try_parse(config_file: &PathBuf) -> Result<Self> {
         let mut buf = String::new();
-        let config_file = File::open(config_file)?;
+
+        let config_file = File::open(config_file).context(
+            "
+            Failed to open the config file from the pathbuf.
+            ",
+        )?;
+
         let mut reader = BufReader::new(config_file);
-        reader.read_to_string(&mut buf)?;
-        let config: UpperConfig = toml::from_str(buf.as_str())?;
+        reader.read_to_string(&mut buf).context(
+            "
+            Failed to read the contents of the file into the buffer.
+            ",
+        )?;
+
+        let config: UpperConfig = toml::from_str(buf.as_str())
+            .context("Failed to parse the contents to toml")?;
         Ok(config)
     }
 }
 
 pub fn get_config_path() -> Result<PathBuf> {
-    let config_dir = if let Ok(config_dir) = env::var("CALCURSE_HOME") {
+    let config_dir = if let Ok(config_dir) = env::var("CALCU_RS_HOME") {
+        trace!("$CALCU_RS_HOME was defined. Using the value {config_dir}");
         Ok(config_dir)
     } else if let Ok(config_dir) = env::var("XDG_CONFIG") {
+        trace!("$XDG_CONFIG was defined. Using the value {config_dir}");
         Ok(config_dir)
     } else if let Ok(home_dir) = env::var("HOME") {
+        trace!("$HOME was defined. Using the value {home_dir}/.config");
         let config_dir = [home_dir.as_str(), ".config"].join("/");
         Ok(config_dir)
     } else {
         match env::var("USER") {
             Ok(user) => {
+                trace!(
+                    "$USER was defined. Using the value /home/{user}/.config"
+                );
                 let config_dir = ["/home", user.as_str(), ".config"].join("/");
                 Ok(config_dir)
             }
-            Err(e) => Err(e),
+            Err(e) => {
+                error!("None of the environment variables were defined to appropriately determine config directory.");
+                Err(e)
+            }
         }
     };
 
@@ -140,8 +162,14 @@ pub fn get_config_path() -> Result<PathBuf> {
         .join("/")
         .into())
 }
+
 pub fn write_default_config(config_path: &PathBuf) -> Result<()> {
-    let mut config_file = File::create(config_path)?;
+    let mut config_file = File::create(config_path).context(
+        "
+        Failed to create or open file. It might be a permissions issue, 
+        since the relevant directories were created already.
+        ",
+    )?;
 
     let default_todos = TodoConfigBuilder::default().build().unwrap();
     let default_schedule = ScheduleConfigBuilder::default().build().unwrap();
@@ -153,8 +181,20 @@ pub fn write_default_config(config_path: &PathBuf) -> Result<()> {
         .comments(default_comments)
         .build()
         .unwrap();
+    trace!("Built default config");
 
-    let toml = toml::to_string(&default_config)?;
-    config_file.write_all(toml.as_bytes())?;
+    let toml = toml::to_string(&default_config).context(
+        "
+        Failed to serialize the configuration to TOML. Please report 
+        the issue to the maintainer.
+        ",
+    )?;
+    config_file.write_all(toml.as_bytes()).context(
+        "
+        Failed to write the default config to the file. 
+        It could possibly be a permissions issue.
+        ",
+    )?;
+
     Ok(())
 }

@@ -1,9 +1,10 @@
 use std::{collections::HashMap, fs, iter::Peekable, path::PathBuf};
 
-use crate::structs::{self, TimeInterval};
+use crate::structs::{self, TimeInterval, DATE_FMT};
 
-use anyhow::Result;
+use anyhow::{Context, Result};
 use chrono::{NaiveDate, NaiveTime};
+use log::{info, trace, warn};
 use pulldown_cmark::{BlockQuoteKind, Event, Options, Parser, Tag, TagEnd};
 use regex::Regex;
 
@@ -23,13 +24,17 @@ pub fn parse_sequence(
     let mut sched = structs::Schedule {
         events,
         comments,
-
         tbd_todos,
     };
 
     while day_iter.peek().expect("Impossible") != end_date {
-        let date = day_iter.next().unwrap();
-        if parse_one_day(&date, path, &all_regexes, &mut sched).is_err() {
+        let date = day_iter.next().expect("Impossible unless overflow.");
+        if let Err(e) = parse_one_day(&date, path, &all_regexes, &mut sched) {
+            warn!(
+                "No file exists at the specified path with the name {}",
+                date.format(DATE_FMT.fmt)
+            );
+            info!("Additional context: {e}");
             path.pop();
             continue;
         }
@@ -47,7 +52,9 @@ pub fn parse_one_day(
     let filename = format!("{}.md", date.format("%Y-%m-%d"));
     path.push(filename);
 
-    let contents = fs::read_to_string(&path)?;
+    let contents = fs::read_to_string(&path).context(
+        "Failed to read the file to the string. The file was {filenae}",
+    )?;
 
     let mut parse_stream = Parser::new_ext(
         &contents,
@@ -57,14 +64,18 @@ pub fn parse_one_day(
 
     while let Some(content) = parse_stream.next() {
         match content {
-            Event::TaskListMarker(done) if !done => parse_tasks(
-                &mut sched.tbd_todos,
-                &mut parse_stream,
-                &all_regexes.deadline,
-                &all_regexes.at_time,
-                date,
-            ),
+            Event::TaskListMarker(done) if !done => {
+                trace!("Incomplete task encountered!");
+                parse_tasks(
+                    &mut sched.tbd_todos,
+                    &mut parse_stream,
+                    &all_regexes.deadline,
+                    &all_regexes.at_time,
+                    date,
+                )
+            }
             Event::Start(Tag::BlockQuote(Some(BlockQuoteKind::Note))) => {
+                trace!("Comment with Info blockquote encountered!");
                 parse_comments(
                     date,
                     &mut sched.comments,
@@ -73,6 +84,7 @@ pub fn parse_one_day(
                 )
             }
             Event::Start(Tag::BlockQuote(Some(BlockQuoteKind::Important))) => {
+                trace!("Schedule with Important blockquote encountered!");
                 parse_schedule(
                     &mut sched.events,
                     &all_regexes.at_time,
@@ -98,6 +110,7 @@ fn parse_schedule(
 ) {
     let mut content = String::new();
 
+    trace!("Reading content from the schedule block");
     while parse_stream.peek() != Some(&Event::End(TagEnd::BlockQuote)) {
         if let Some(Event::Text(node)) = parse_stream.next() {
             content.push_str(&node);
@@ -109,6 +122,8 @@ fn parse_schedule(
 
     let start_time = start_search.find(&content);
     if let Some(time) = start_time {
+        trace!("Block was a schedule beginning");
+
         let mut name = content.replace(time.as_str(), "");
         trim_in_place(&mut name);
         let time_interval = (
@@ -136,6 +151,8 @@ fn parse_schedule(
 
     let all_day = all_day_search.find(&content);
     if let Some(time) = all_day {
+        trace!("Block was an all day schedule");
+
         let mut name = content.replace(time.as_str(), "");
         trim_in_place(&mut name);
         let time_interval =
@@ -152,6 +169,7 @@ fn parse_schedule(
 
     let end_time = end_search.find(&content);
     if let Some(time) = end_time {
+        trace!("Block was a schedule end");
         let mut name = content.replace(time.as_str(), "");
         trim_in_place(&mut name);
         let cal_event = match events.get_mut(&name) {
@@ -208,6 +226,7 @@ fn parse_tasks(
             )
             .unwrap_or_default()
         });
+
         let time_of_write = time_of_write.map(|time| {
             NaiveTime::parse_from_str(
                 time.as_str().split_once(':').expect("Impossible").1.trim(),
@@ -216,6 +235,7 @@ fn parse_tasks(
             .unwrap_or_default()
         });
 
+        trace!("Parsed a TODO");
         let task = structs::ToDo {
             date: *date,
             time_of_write,
@@ -251,6 +271,7 @@ fn parse_comments(
             .unwrap_or_default(),
         );
 
+        trace!("Parsed a comment");
         comments.push(structs::Comment {
             time_of_write,
             comment,

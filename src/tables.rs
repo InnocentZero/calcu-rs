@@ -13,92 +13,53 @@ use tabled::{
     Table,
 };
 
+macro_rules! configure_table {
+    ($table:ident, $theme:ident, $config:ident, $width:ident) => {
+        let alignment: Alignment = $config.alignment.into();
+        $table
+            .with($theme)
+            .with(Margin::new(
+                $config.margins.0,
+                $config.margins.1,
+                $config.margins.2,
+                $config.margins.3,
+            ))
+            .with(
+                Width::wrap($width as usize)
+                    .keep_words()
+                    .priority::<PriorityMax>(),
+            )
+            .with(Format::content(|s| {
+                s.lines().map(|l| l.trim()).collect::<Vec<_>>().join("\n")
+            }))
+            .with(Width::increase($width as usize))
+            .with(alignment)
+            .with(Alignment::center_vertical())
+            .with(AlignmentStrategy::PerLine);
+    };
+}
+
 pub fn print_schedule(
     cal_events: &HashMap<String, CalEvent>,
     config: &ScheduleConfig,
     width: u16,
 ) {
-    let mut table = Table::new(cal_events);
-
-    table.modify((0, 0), Format::content(|_| "Schedule".to_string()));
-    let mut horizontals = HashMap::new();
-
     let mut theme: Theme = config.table_style.into();
-    if let Some(hor) = theme.get_border_horizontal() {
-        horizontals.insert(1, HorizontalLine::new(hor).into_inner());
-    }
-    theme.remove_border_horizontal();
-    theme.set_lines_horizontal(horizontals);
-    if let Some(chr) = theme.get_border_vertical() {
-        theme.set_border_intersection(chr);
-        theme.set_border_intersection_left(chr);
-        theme.set_border_intersection_right(chr);
-    }
-    theme.align_columns(Alignment::center_vertical());
+    configure_theme(&mut theme);
 
-    let alignment: Alignment = config.alignment.into();
-
-    table
-        .with(theme)
-        .with(Margin::new(
-            config.margins.0,
-            config.margins.1,
-            config.margins.2,
-            config.margins.3,
-        ))
-        .with(
-            Width::wrap(width as usize)
-                .priority::<PriorityMax>()
-                .keep_words(),
-        )
-        .with(Format::content(|s| {
-            s.lines().map(|l| l.trim()).collect::<Vec<_>>().join("\n")
-        }))
-        .with(Width::increase(width as usize).priority::<PriorityMax>())
-        .with(alignment)
-        .with(AlignmentStrategy::PerLine);
+    let mut table = Table::new(cal_events);
+    table.modify((0, 0), Format::content(|_| "Schedule".to_string()));
+    configure_table!(table, theme, config, width);
 
     println!("{table}");
 }
 
 pub fn print_todos(todos: &Vec<ToDo>, config: &TodoConfig, width: u16) {
-    let mut horizontals = HashMap::new();
-
     let mut theme: Theme = config.table_style.into();
-    if let Some(hor) = theme.get_border_horizontal() {
-        horizontals.insert(1, HorizontalLine::new(hor).into_inner());
-    }
-    theme.remove_border_horizontal();
-    theme.set_lines_horizontal(horizontals);
-    if let Some(chr) = theme.get_border_vertical() {
-        theme.set_border_intersection(chr);
-        theme.set_border_intersection_left(chr);
-        theme.set_border_intersection_right(chr);
-    }
-    theme.align_columns(Alignment::center_vertical());
-
-    let alignment: Alignment = config.alignment.into();
+    configure_theme(&mut theme);
 
     let mut table = Table::new(todos);
-    table
-        .with(theme)
-        .with(Margin::new(
-            config.margins.0,
-            config.margins.1,
-            config.margins.2,
-            config.margins.3,
-        ))
-        .with(
-            Width::wrap(width as usize)
-                .keep_words()
-                .priority::<PriorityMax>(),
-        )
-        .with(Format::content(|s| {
-            s.lines().map(|l| l.trim()).collect::<Vec<_>>().join("\n")
-        }))
-        .with(Width::increase(width as usize))
-        .with(alignment)
-        .with(AlignmentStrategy::PerLine);
+    configure_table!(table, theme, config, width);
 
     println!("{table}");
 }
@@ -108,9 +69,17 @@ pub fn print_comments(
     config: &CommentConfig,
     width: u16,
 ) {
-    let mut horizontals = HashMap::new();
-
     let mut theme: Theme = config.table_style.into();
+    configure_theme(&mut theme);
+
+    let mut table = Table::new(comments);
+    configure_table!(table, theme, config, width);
+
+    println!("{table}");
+}
+
+fn configure_theme(theme: &mut Theme) {
+    let mut horizontals = HashMap::new();
     if let Some(hor) = theme.get_border_horizontal() {
         horizontals.insert(1, HorizontalLine::new(hor).into_inner());
     }
@@ -122,32 +91,6 @@ pub fn print_comments(
         theme.set_border_intersection_right(chr);
     }
     theme.align_columns(Alignment::center_vertical());
-
-    let alignment: Alignment = config.alignment.into();
-
-    let mut table = Table::new(comments);
-    table
-        .with(theme)
-        .with(Margin::new(
-            config.margins.0,
-            config.margins.1,
-            config.margins.2,
-            config.margins.3,
-        ))
-        .with(
-            Width::wrap(width as usize)
-                .keep_words()
-                .priority::<PriorityMax>(),
-        )
-        .with(Format::content(|s| {
-            s.lines().map(|l| l.trim()).collect::<Vec<_>>().join("\n")
-        }))
-        .with(Width::increase(width as usize))
-        .with(alignment)
-        .with(Alignment::center_vertical())
-        .with(AlignmentStrategy::PerLine);
-
-    println!("{table}");
 }
 
 #[cfg(test)]
