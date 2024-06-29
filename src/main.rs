@@ -122,9 +122,17 @@ fn main() -> Result<()> {
         termsize::Size { rows: 0, cols: 80 }
     });
 
-    print_todos(&schedule.tbd_todos, &config.todos, width);
-    print_comments(&schedule.comments, &config.comments, width);
-    print_schedule(&schedule.events, &config.schedule, width);
+    match args.command {
+        Commands::Todo => {
+            print_todos(&schedule.tbd_todos, &config.todos, size.cols)
+        }
+        Commands::Schedule => {
+            print_schedule(&schedule.events, &config.schedule, size.cols)
+        }
+        Commands::Logs => {
+            print_comments(&schedule.comments, &config.comments, size.cols)
+        }
+    }
 
     Ok(())
 }
