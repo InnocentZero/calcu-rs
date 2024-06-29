@@ -10,6 +10,7 @@ use calcu_rs::parse::parse_sequence;
 use calcu_rs::tables::{print_comments, print_todos};
 use chrono::{Local, NaiveDate};
 use clap::{Parser, Subcommand};
+use terminal_size::terminal_size;
 
 /// A command-line journal logger, scheduler and task manager.
 #[derive(Parser, Debug)]
@@ -97,6 +98,13 @@ fn main() -> Result<()> {
     );
     print_todos(&schedule.tbd_todos, &config.todos);
     print_comments(&schedule.comments, &config.comments);
+
+    let (terminal_size::Width(width), terminal_size::Height(_)) =
+        terminal_size().unwrap();
+
+    print_todos(&schedule.tbd_todos, &config.todos, width);
+    print_comments(&schedule.comments, &config.comments, width);
+    print_schedule(&schedule.events, &config.schedule, width);
 
     Ok(())
 }

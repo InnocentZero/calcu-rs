@@ -7,13 +7,17 @@ use crate::{
 
 use tabled::{
     builder::Builder,
-    settings::{style::HorizontalLine, Alignment, Margin, Theme},
+    settings::{
+        formatting::AlignmentStrategy, peaker::PriorityMax,
+        style::HorizontalLine, Alignment, Format, Margin, Theme, Width,
+    },
     Table,
 };
 
 pub fn print_schedule(
     cal_events: &HashMap<String, CalEvent>,
     config: &ScheduleConfig,
+    width: u16,
 ) {
     let mut builder = Builder::new();
     builder.push_record(["Schedule", "Start Day and Time", "End Day and Time"]);
@@ -51,12 +55,18 @@ pub fn print_schedule(
             config.margins.2,
             config.margins.3,
         ))
-        .with(alignment);
+        .with(
+            Width::wrap(width as usize)
+                .priority::<PriorityMax>()
+                .keep_words(),
+        )
+        .with(alignment)
+        .with(AlignmentStrategy::PerLine);
 
     println!("{table}");
 }
 
-pub fn print_todos(todos: &Vec<ToDo>, config: &TodoConfig) {
+pub fn print_todos(todos: &Vec<ToDo>, config: &TodoConfig, width: u16) {
     let mut horizontals = HashMap::new();
 
     let mut theme: Theme = config.table_style.into();
@@ -83,12 +93,22 @@ pub fn print_todos(todos: &Vec<ToDo>, config: &TodoConfig) {
             config.margins.2,
             config.margins.3,
         ))
-        .with(alignment);
+        .with(
+            Width::wrap(width as usize)
+                .keep_words()
+                .priority::<PriorityMax>(),
+        )
+        .with(alignment)
+        .with(AlignmentStrategy::PerLine);
 
     println!("{table}");
 }
 
-pub fn print_comments(comments: &Vec<Comment>, config: &CommentConfig) {
+pub fn print_comments(
+    comments: &Vec<Comment>,
+    config: &CommentConfig,
+    width: u16,
+) {
     let mut horizontals = HashMap::new();
 
     let mut theme: Theme = config.table_style.into();
@@ -115,8 +135,14 @@ pub fn print_comments(comments: &Vec<Comment>, config: &CommentConfig) {
             config.margins.2,
             config.margins.3,
         ))
+        .with(
+            Width::wrap(width as usize)
+                .keep_words()
+                .priority::<PriorityMax>(),
+        )
         .with(alignment)
-        .with(Alignment::center_vertical());
+        .with(Alignment::center_vertical())
+        .with(AlignmentStrategy::PerLine);
 
     println!("{table}");
 }
@@ -150,6 +176,7 @@ mod test {
                 .table_style(TableStyle::Empty)
                 .build()
                 .unwrap(),
+            80,
         );
         print_schedule(
             &sched.events,
@@ -157,6 +184,7 @@ mod test {
                 .table_style(TableStyle::Extended)
                 .build()
                 .unwrap(),
+            80,
         );
         print_schedule(
             &sched.events,
@@ -164,6 +192,7 @@ mod test {
                 .table_style(TableStyle::Rounded)
                 .build()
                 .unwrap(),
+            80,
         );
     }
 
@@ -181,6 +210,7 @@ mod test {
         print_todos(
             &sched.tbd_todos,
             &TodoConfigBuilder::default().build().unwrap(),
+            80,
         );
         print_todos(
             &sched.tbd_todos,
@@ -188,6 +218,7 @@ mod test {
                 .table_style(TableStyle::Extended)
                 .build()
                 .unwrap(),
+            80,
         );
     }
 
@@ -205,6 +236,7 @@ mod test {
         print_comments(
             &sched.comments,
             &CommentConfigBuilder::default().build().unwrap(),
+            80,
         );
 
         print_comments(
@@ -213,6 +245,7 @@ mod test {
                 .table_style(TableStyle::Extended)
                 .build()
                 .unwrap(),
+            80,
         );
     }
 }
