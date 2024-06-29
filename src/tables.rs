@@ -54,7 +54,7 @@ pub fn print_schedule(
         .with(Format::content(|s| {
             s.lines().map(|l| l.trim()).collect::<Vec<_>>().join("\n")
         }))
-        .with(Width::increase(width as usize))
+        .with(Width::increase(width as usize).priority::<PriorityMax>())
         .with(alignment)
         .with(AlignmentStrategy::PerLine);
 
