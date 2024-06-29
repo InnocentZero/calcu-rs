@@ -27,7 +27,7 @@ pub fn parse_sequence(
         tbd_todos,
     };
 
-    while day_iter.peek().unwrap() != end_date {
+    while day_iter.peek().expect("Impossible") != end_date {
         let date = day_iter.next().unwrap();
         if parse_one_day(&date, path, &all_regexes, &mut sched).is_err() {
             path.pop();
@@ -98,13 +98,19 @@ fn parse_schedule(
 ) {
     let mut content = String::new();
 
-    if let Some(Event::Text(node)) = parse_stream.peek() {
-        content.push_str(node);
+    while parse_stream.peek() != Some(&Event::End(TagEnd::BlockQuote)) {
+        if let Some(Event::Text(node)) = parse_stream.next() {
+            content.push_str(&node);
+            trim_in_place(&mut content);
+            content.push('\n');
+        }
     }
+    trim_in_place(&mut content);
 
     let start_time = start_search.find(&content);
     if let Some(time) = start_time {
-        let name = content.replace(time.as_str(), "");
+        let mut name = content.replace(time.as_str(), "");
+        trim_in_place(&mut name);
         let time_interval = (
             TimeInterval((
                 *date,
@@ -130,7 +136,8 @@ fn parse_schedule(
 
     let all_day = all_day_search.find(&content);
     if let Some(time) = all_day {
-        let name = content.replace(time.as_str(), "");
+        let mut name = content.replace(time.as_str(), "");
+        trim_in_place(&mut name);
         let time_interval =
             (TimeInterval((*date, None)), TimeInterval((*date, None)));
         events.insert(
@@ -145,8 +152,18 @@ fn parse_schedule(
 
     let end_time = end_search.find(&content);
     if let Some(time) = end_time {
-        let name = content.replace(time.as_str(), "");
-        let cal_event = events.get_mut(&name).unwrap();
+        let mut name = content.replace(time.as_str(), "");
+        trim_in_place(&mut name);
+        let cal_event = match events.get_mut(&name) {
+            Some(e) => e,
+            None => panic!(
+                "
+                Error occured while parsing {} in {content}. Please check 
+                that the name you've specified is correct or not.
+                ",
+                name
+            ),
+        };
         cal_event.start_time =
             TimeInterval((
                 cal_event.start_time.0 .0,
@@ -163,7 +180,7 @@ fn parse_schedule(
                     time.as_str().split_once(':').unwrap().1.trim(),
                     structs::TIME_FMT.fmt,
                 )
-                .unwrap(),
+                .unwrap_or_default(),
             ),
         ));
     }
@@ -186,17 +203,17 @@ fn parse_tasks(
 
         let deadline = deadline.map(|date| {
             NaiveDate::parse_from_str(
-                date.as_str().split_once(':').unwrap().1.trim(),
+                date.as_str().split_once(':').expect("Impossible").1.trim(),
                 structs::DATE_FMT.fmt,
             )
-            .unwrap()
+            .unwrap_or_default()
         });
         let time_of_write = time_of_write.map(|time| {
             NaiveTime::parse_from_str(
-                time.as_str().split_once(':').unwrap().1.trim(),
+                time.as_str().split_once(':').expect("Impossible").1.trim(),
                 structs::TIME_FMT.fmt,
             )
-            .unwrap()
+            .unwrap_or_default()
         });
 
         let task = structs::ToDo {
@@ -228,16 +245,25 @@ fn parse_comments(
         let comment = comment.replace(time.as_str(), "");
         let time_of_write = date.and_time(
             NaiveTime::parse_from_str(
-                time.as_str().split_once(':').unwrap().1.trim(),
+                time.as_str().split_once(':').expect("Impossible").1.trim(),
                 structs::TIME_FMT.fmt,
             )
-            .unwrap(),
+            .unwrap_or_default(),
         );
 
         comments.push(structs::Comment {
             time_of_write,
             comment,
         })
+    }
+}
+
+fn trim_in_place(content: &mut String) {
+    while content.ends_with(' ')
+        || content.ends_with('\t')
+        || content.ends_with('\n')
+    {
+        content.pop();
     }
 }
 

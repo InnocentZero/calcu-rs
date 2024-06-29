@@ -1,6 +1,6 @@
 use std::{
     fs::{create_dir_all, File},
-    io::{self, Result},
+    io::{self, Error, Result},
     path::{Path, PathBuf},
     str::FromStr,
 };
@@ -58,16 +58,12 @@ fn main() -> Result<()> {
     })?;
 
     if !config_file.exists() {
-        create_dir_all(
-            config_file
-                .parent()
-                .unwrap_or(Path::new("/home/nobody_has_this_as_home_dir")),
-        )
-        .map_err(|e| {
-            eprintln!("Failed to create parent directories");
-            eprintln!("{e:?}");
-            io::ErrorKind::NotFound
-        })?;
+        create_dir_all(config_file.parent().unwrap_or(Path::new("/")))
+            .map_err(|e| {
+                eprintln!("Failed to create parent directories");
+                eprintln!("{e:?}");
+                io::ErrorKind::NotFound
+            })?;
 
         let file = File::create(&config_file).map_err(|e| {
             eprintln!("Error occured: {e:?}");
@@ -97,8 +93,20 @@ fn main() -> Result<()> {
         Local::now()
             .date_naive()
             .checked_add_days(Days::new(1))
-            .unwrap(),
+            .expect(
+                "
+                How far in the future are you using this??
+                ",
+            ),
     );
+    if start_date > end_date {
+        eprintln!(
+            "
+            Invalid start and end dates. Start date falls later than the end date.
+            "
+        );
+        return Err(Error::from(io::ErrorKind::InvalidInput));
+    }
 
     let mut notes = args
         .notes
@@ -106,7 +114,8 @@ fn main() -> Result<()> {
     let schedule = parse_sequence(&start_date, &end_date, &mut notes);
 
     let (terminal_size::Width(width), terminal_size::Height(_)) =
-        terminal_size().unwrap();
+        terminal_size()
+            .unwrap_or((terminal_size::Width(80), terminal_size::Height(0)));
 
     print_todos(&schedule.tbd_todos, &config.todos, width);
     print_comments(&schedule.comments, &config.comments, width);
