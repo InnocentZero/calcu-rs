@@ -7,8 +7,10 @@ use crate::{
 
 use tabled::{
     settings::{
-        formatting::AlignmentStrategy, peaker::PriorityMax,
-        style::HorizontalLine, Alignment, Format, Margin, Theme, Width,
+        formatting::{AlignmentStrategy, TrimStrategy},
+        peaker::PriorityMax,
+        style::HorizontalLine,
+        Alignment, Format, Margin, Theme, Width,
     },
     Table,
 };
@@ -29,9 +31,7 @@ macro_rules! configure_table {
                     .keep_words()
                     .priority::<PriorityMax>(),
             )
-            .with(Format::content(|s| {
-                s.lines().map(|l| l.trim()).collect::<Vec<_>>().join("\n")
-            }))
+            .with(TrimStrategy::Horizontal)
             .with(Width::increase($width as usize))
             .with(alignment)
             .with(Alignment::center_vertical())
