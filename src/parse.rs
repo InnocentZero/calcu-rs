@@ -115,7 +115,7 @@ fn parse_schedule(
         if let Some(Event::Text(node)) = parse_stream.next() {
             content.push_str(&node);
             trim_in_place(&mut content);
-            content.push('\n');
+            content.push(' ');
         }
     }
     trim_in_place(&mut content);
@@ -256,7 +256,7 @@ fn parse_comments(
     while parse_stream.peek() != Some(&Event::End(TagEnd::BlockQuote)) {
         if let Some(Event::Text(node)) = parse_stream.next() {
             comment.push_str(&node);
-            comment.push('\n');
+            comment.push(' ');
         }
     }
 

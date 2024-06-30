@@ -47,6 +47,11 @@ pub const DATE_FMT: Format = Format {
     fmt: "%Y-%m-%d",
 };
 
+pub const DATETIME_FMT: Format = Format {
+    re: "[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2} [AP]M",
+    fmt: "%Y-%m-%d %I:%M %p",
+};
+
 #[derive(Debug)]
 pub struct Schedule {
     pub events: HashMap<String, CalEvent>,
@@ -66,10 +71,14 @@ pub struct CalEvent {
 
 #[derive(Debug, Tabled)]
 pub struct Comment {
-    #[tabled(rename = "Time of Write")]
+    #[tabled(rename = "Time of Write", display_with = "display_datetime")]
     pub time_of_write: NaiveDateTime,
     #[tabled(rename = "Logs")]
     pub comment: String,
+}
+
+fn display_datetime(datetime: &NaiveDateTime) -> String {
+    datetime.format(DATETIME_FMT.fmt).to_string()
 }
 
 #[derive(Debug, Tabled)]
